@@ -1,30 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Sandbox.Common;
-using Sandbox.Common.ObjectBuilders;
-using Sandbox.Common.ObjectBuilders.Definitions;
-using Sandbox.Definitions;
-using Sandbox.Game;
 using Sandbox.Game.Entities;
-using Sandbox.Game.EntityComponents;
-using Sandbox.Game.GameSystems;
 using Sandbox.ModAPI;
-using Sandbox.ModAPI.Interfaces;
-using SpaceEngineers.Game.ModAPI;
-using VRage.Game;
 using VRage.Game.Components;
-using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRage.ModAPI;
-using VRage.ObjectBuilders;
 using VRage.Utils;
-using VRageMath;
 
 namespace dev.jamac.AtmosphericDragConfigurable
 {
@@ -56,7 +39,9 @@ namespace dev.jamac.AtmosphericDragConfigurable
         public const bool DEBUG = false;
         public const string CONFIG_FILE = "AtmosphericDragConfigurable.cfg";
         public const float DRAG_MULTIPLIER_INTERNAL = 0.5f;
-        public const ushort HANDLER_ID = 38010;
+        public const ushort HANDLER_ID_SET = 38010;
+        public const ushort HANDLER_ID_GET = 38011;
+        public const ushort HANDLER_ID_RESPOND = 38012;
 
         // Other Variables
         internal bool initalized = false;
@@ -92,12 +77,15 @@ namespace dev.jamac.AtmosphericDragConfigurable
                 entityList.Clear();
                 grids.Clear();
 
-                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(HANDLER_ID, OnMessageFromClient);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(HANDLER_ID_SET, OnMessageFromClient);
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(HANDLER_ID_GET, OnMessageFromClient);
             }
 
             if(isClient)
             {
                 chatCommandHandler.Stop();
+
+                MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(HANDLER_ID_RESPOND, OnMessageFromServer);
             }
         }
 
@@ -108,6 +96,8 @@ namespace dev.jamac.AtmosphericDragConfigurable
             // Set up chat command event
             chatCommandHandler = new ChatCommandHandler();
             chatCommandHandler.Commands.Add("atmodrag", DragMultiplierCommand);
+
+            MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(HANDLER_ID_RESPOND, OnMessageFromServer);
         }
 
         public void ServerInit()
@@ -130,7 +120,8 @@ namespace dev.jamac.AtmosphericDragConfigurable
                 EntityAdded(entity);
             }
 
-            MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(HANDLER_ID, OnMessageFromClient);
+            MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(HANDLER_ID_SET, OnMessageFromClient);
+            MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(HANDLER_ID_GET, OnMessageFromClient);
         }
 
         public override void UpdateAfterSimulation()
@@ -228,7 +219,15 @@ namespace dev.jamac.AtmosphericDragConfigurable
 
             if(args.Length == 1)
             {
-                MyAPIGateway.Utilities.ShowMessage("AtmosphericDrag", $"Current drag multiplier: {dragMultiplier}");
+                if(isServer)
+                {
+                    MyAPIGateway.Utilities.ShowMessage("AtmosphericDrag", $"Current drag multiplier: {dragMultiplier}");
+                }
+                else
+                {
+                    MyAPIGateway.Multiplayer.SendMessageToServer(HANDLER_ID_GET, null);
+                }
+
                 return;
             }
 
@@ -243,7 +242,7 @@ namespace dev.jamac.AtmosphericDragConfigurable
                 dragMultiplier = Math.Max(0f, float.Parse(args[1], CultureInfo.InvariantCulture));
                 if(!isServer)
                 {
-                    MyAPIGateway.Multiplayer.SendMessageToServer(HANDLER_ID, MyAPIGateway.Utilities.SerializeToBinary<float>(dragMultiplier));
+                    MyAPIGateway.Multiplayer.SendMessageToServer(HANDLER_ID_SET, MyAPIGateway.Utilities.SerializeToBinary<float>(dragMultiplier));
                 }
 
                 MyAPIGateway.Utilities.ShowMessage("AtmosphericDrag", $"Set drag multiplier to {dragMultiplier}");
@@ -295,13 +294,36 @@ namespace dev.jamac.AtmosphericDragConfigurable
 
         private void OnMessageFromClient(ushort id, byte[] data, ulong senderID, bool reliable)
         {
+            switch(id)
+            {
+                case HANDLER_ID_SET:
+                    try
+                    {
+                        dragMultiplier = MyAPIGateway.Utilities.SerializeFromBinary<float>(data);
+                    }
+                    catch
+                    {
+                        MyLog.Default.WriteLine($"[AtmosphericDragConfigurable] Error: Failed to set drag multiplier from data recieved from client {senderID}.");
+                    }
+
+                    break;
+                
+                case HANDLER_ID_GET:
+                    MyAPIGateway.Multiplayer.SendMessageTo(HANDLER_ID_RESPOND, MyAPIGateway.Utilities.SerializeToBinary<float>(dragMultiplier), senderID);
+                    break;
+            }
+        }
+
+        private void OnMessageFromServer(ushort id, byte[] data, ulong senderID, bool reliable)
+        {
             try
             {
                 dragMultiplier = MyAPIGateway.Utilities.SerializeFromBinary<float>(data);
+                MyAPIGateway.Utilities.ShowMessage("AtmosphericDrag", $"Current drag multiplier: {dragMultiplier}");
             }
             catch
             {
-                MyLog.Default.WriteLine($"[AtmosphericDragConfigurable] Error: Failed to set drag multiplier from data recieved from client {senderID}.");
+                MyLog.Default.WriteLine($"[AtmosphericDragConfigurable] Error: Failed to get drag multiplier from data recieved from server.");
             }
         }
     }
