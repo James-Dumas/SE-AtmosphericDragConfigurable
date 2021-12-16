@@ -19,8 +19,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
         // Planets Detection
         public static Dictionary<long, MyPlanet> planets = new Dictionary<long, MyPlanet>();
         public static List<long> removePlanets = new List<long>();
-        public const float MIN_ATMOSPHERE = 0.0f;
-        public const float MAX_ATMOSPHERE = 0.85f; // 0.82
 
         // Entity Lists
         public static HashSet<IMyEntity> entityList = new HashSet<IMyEntity>();
@@ -92,11 +90,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
         public void ClientInit()
         {
             isClient = true;
-
-            // Set up chat command event
-            chatCommandHandler = new ChatCommandHandler();
-            chatCommandHandler.Commands.Add("atmodrag", DragMultiplierCommand);
-
             MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(HANDLER_ID_RESPOND, OnMessageFromServer);
         }
 
@@ -139,6 +132,10 @@ namespace dev.jamac.AtmosphericDragConfigurable
                 {
                     ClientInit();
                 }
+
+                // Set up chat command event
+                chatCommandHandler = new ChatCommandHandler();
+                chatCommandHandler.Commands.Add("atmodrag", DragMultiplierCommand);
             }
 
             if(!isServer) return;
@@ -175,7 +172,7 @@ namespace dev.jamac.AtmosphericDragConfigurable
             {
                 Grid gridObj = entity;
                 if (gridObj != null)
-                    if (gridObj.grid != null && !gridObj.grid.Closed && gridObj.grid.Physics != null && !gridObj.grid.Physics.IsStatic && gridObj.grid.BlocksCount > 3)
+                    if (gridObj.grid != null && !gridObj.grid.Closed && gridObj.grid.Physics != null && !gridObj.grid.Physics.IsStatic && gridObj.grid.BlocksCount > 1)
                         gridObj.calculateAndApplyDrag();
             }
         }
@@ -225,7 +222,7 @@ namespace dev.jamac.AtmosphericDragConfigurable
                 }
                 else
                 {
-                    MyAPIGateway.Multiplayer.SendMessageToServer(HANDLER_ID_GET, null);
+                    MyAPIGateway.Multiplayer.SendMessageToServer(HANDLER_ID_GET, new byte[] { 0 });
                 }
 
                 return;

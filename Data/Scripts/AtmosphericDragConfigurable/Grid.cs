@@ -30,7 +30,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
         // update variables
         private int updateAtmosphereSkip = 0;
         private float atmosphere = 0;
-        private float reEntryAtmosphere = 0;
         private int atmospheres = 0;
 
         int BlockCount;
@@ -51,7 +50,7 @@ namespace dev.jamac.AtmosphericDragConfigurable
         public void calculateAndApplyDrag()
         {
             float velocity = grid.Physics.LinearVelocity.Length();
-            if (velocity > 20f)
+            if (velocity > 10f)
             {
                 // If blocks have been added or removed since last check need to update surfaces
                 if (grid.BlocksCount != BlockCount)
@@ -65,7 +64,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
                 {
                     updateAtmosphereSkip = AtmosphericDrag.SKIP_TICKS_60;
                     atmosphere = 0;
-                    reEntryAtmosphere = 0;
                     atmospheres = 0;
 
                     // Determine if entity is in atmosphere of any of the planets
@@ -76,12 +74,11 @@ namespace dev.jamac.AtmosphericDragConfigurable
                         {
                             continue;
                         }
-                        // 3D Pythagorean Theorem "To get rid of that relatively CPU intensive SQRT part, multiply the distance you want to check against by itself."
+
                         if (planet.HasAtmosphere && Vector3D.DistanceSquared(gridCenter, planet.WorldMatrix.Translation) < (planet.AtmosphereRadius * planet.AtmosphereRadius))
                         {
                             float atmo = planet.GetAirDensity(gridCenter);
                             atmosphere += atmo;
-                            reEntryAtmosphere += atmo;
 
                             atmospheres++;
                         }
@@ -91,8 +88,7 @@ namespace dev.jamac.AtmosphericDragConfigurable
                     if (atmospheres > 0)
                     {
                         atmosphere /= atmospheres;
-                        atmosphere = MathHelper.Clamp((atmosphere - AtmosphericDrag.MIN_ATMOSPHERE) / (AtmosphericDrag.MAX_ATMOSPHERE - AtmosphericDrag.MIN_ATMOSPHERE), 0f, 1f);
-                        atmosphere = (float)Math.Pow(atmosphere, 3);
+                        atmosphere = atmosphere * atmosphere * atmosphere;
                     }
                 }
 
@@ -104,10 +100,8 @@ namespace dev.jamac.AtmosphericDragConfigurable
 
                 float speedSq = velocity * velocity;
 
-                // If large grid apply multiplier to account for larger blocks and more drag (Largegrid returns 2.5f meters SmallGrid returns 0.5f meters)
-                float gridSize = grid.GridSize;
-                if (grid.GridSizeEnum == MyCubeSize.Large)
-                    gridSize = gridSize * gridSize;
+                // Calculate surface area of grid blocks based on grid size
+                float gridSize = grid.GridSize * grid.GridSize;
 
                 // Velocities in 3 directions
                 Vector3D shipForward = grid.WorldMatrix.Forward;
@@ -141,9 +135,9 @@ namespace dev.jamac.AtmosphericDragConfigurable
                     dragMultiplierUD += dotUp * countUpDown;
 
                 // Apply drag forces to grid
-                grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, -shipForward * AtmosphericDrag.DRAG_MULTIPLIER_INTERNAL * AtmosphericDrag.Instance.dragMultiplier * gridSize * (float)dragMultiplierFB * atmosphere * speedSq, gridCenter, null);
-                grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, -shipLeft * AtmosphericDrag.DRAG_MULTIPLIER_INTERNAL * AtmosphericDrag.Instance.dragMultiplier * gridSize * (float)dragMultiplierLR * atmosphere * speedSq, gridCenter, null);
-                grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, -shipUp * AtmosphericDrag.DRAG_MULTIPLIER_INTERNAL * AtmosphericDrag.Instance.dragMultiplier * gridSize * (float)dragMultiplierUD * atmosphere * speedSq, gridCenter, null);
+                grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, -shipForward * AtmosphericDrag.DRAG_MULTIPLIER_INTERNAL * AtmosphericDrag.Instance.dragMultiplier * gridSize * (float) dragMultiplierFB * atmosphere * speedSq, gridCenter, null);
+                grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, -shipLeft * AtmosphericDrag.DRAG_MULTIPLIER_INTERNAL * AtmosphericDrag.Instance.dragMultiplier * gridSize * (float) dragMultiplierLR * atmosphere * speedSq, gridCenter, null);
+                grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, -shipUp * AtmosphericDrag.DRAG_MULTIPLIER_INTERNAL * AtmosphericDrag.Instance.dragMultiplier * gridSize * (float) dragMultiplierUD * atmosphere * speedSq, gridCenter, null);
             }
         }
 
@@ -183,20 +177,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
                             break;
                         }
                     }
-                    /* TODO: FOR COMPRESSION HEATING
-                    if (blockHit)
-                    {
-                        for (int k = (int)Max.Z; k >= Min.Z; k--)
-                        {
-                            IMySlimBlock tempBlock = grid.GetCubeBlock(new Vector3I(i, j, k));
-                            if (tempBlock != null)
-                            {
-                                backwardSurfaceBlocks.Add(tempBlock);
-                                break;
-                            }
-                        }
-                    }
-                    */
                 }
             }
 
@@ -217,20 +197,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
                             break;
                         }
                     }
-                    /* TODO: FOR COMPRESSION HEATING
-                    if (blockHit)
-                    {
-                        for (int k = (int)Max.Y; k >= Min.Y; k--)
-                        {
-                            IMySlimBlock tempBlock = grid.GetCubeBlock(new Vector3I(i, k, j));
-                            if (tempBlock != null)
-                            {
-                                downSurfaceBlocks.Add(tempBlock);
-                                break;
-                            }
-                        }
-                    }
-                    */
                 }
             }
 
@@ -251,20 +217,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
                             break;
                         }
                     }
-                    /* TODO: FOR COMPRESSION HEATING
-                    if (blockHit)
-                    {
-                        for (int k = (int)Max.X; k >= Min.X; k--)
-                        {
-                            IMySlimBlock tempBlock = grid.GetCubeBlock(new Vector3I(k, i, j));
-                            if (tempBlock != null)
-                            {
-                                rightSurfaceBlocks.Add(tempBlock);
-                                break;
-                            }
-                        }
-                    }
-                    */
                 }
             }
             BlockCount = grid.BlocksCount;
