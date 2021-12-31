@@ -81,10 +81,11 @@ namespace dev.jamac.AtmosphericDragConfigurable
 
             if(isClient)
             {
-                chatCommandHandler.Stop();
-
                 MyAPIGateway.Multiplayer.UnregisterSecureMessageHandler(HANDLER_ID_RESPOND, OnMessageFromServer);
             }
+
+            chatCommandHandler.Stop();
+
         }
 
         public void ClientInit()

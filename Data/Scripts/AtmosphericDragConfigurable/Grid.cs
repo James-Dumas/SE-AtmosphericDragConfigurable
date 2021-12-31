@@ -20,13 +20,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
         private int countLeftRight = 0;
         private int countUpDown = 0;
 
-        private List<IMySlimBlock> forwardSurfaceBlocks = new List<IMySlimBlock>();
-        private List<IMySlimBlock> backwardSurfaceBlocks = new List<IMySlimBlock>();
-        private List<IMySlimBlock> upSurfaceBlocks = new List<IMySlimBlock>();
-        private List<IMySlimBlock> downSurfaceBlocks = new List<IMySlimBlock>();
-        private List<IMySlimBlock> leftSurfaceBlocks = new List<IMySlimBlock>();
-        private List<IMySlimBlock> rightSurfaceBlocks = new List<IMySlimBlock>();
-
         // update variables
         private int updateAtmosphereSkip = 0;
         private float atmosphere = 0;
@@ -43,7 +36,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
             if (grid == null)
                 return;
 
-            iGrid.OnClosing += closeGrid;
             BlockCount = 0;
         }
 
@@ -144,13 +136,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
         // updateSurfaceArea Method: Updates surface area
         private void updateSurfaceArea()
         {
-            forwardSurfaceBlocks.Clear();
-            backwardSurfaceBlocks.Clear();
-            upSurfaceBlocks.Clear();
-            downSurfaceBlocks.Clear();
-            leftSurfaceBlocks.Clear();
-            rightSurfaceBlocks.Clear();
-
             Vector3D Max = grid.Max;
             Vector3D Min = grid.Min;
 
@@ -173,7 +158,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
                         {
                             blockHit = true;
                             countForwardBackward++;
-                            forwardSurfaceBlocks.Add(tempBlock);
                             break;
                         }
                     }
@@ -193,7 +177,6 @@ namespace dev.jamac.AtmosphericDragConfigurable
                         {
                             blockHit = true;
                             countUpDown++;
-                            upSurfaceBlocks.Add(tempBlock);
                             break;
                         }
                     }
@@ -213,27 +196,12 @@ namespace dev.jamac.AtmosphericDragConfigurable
                         {
                             blockHit = true;
                             countLeftRight++;
-                            leftSurfaceBlocks.Add(tempBlock);
                             break;
                         }
                     }
                 }
             }
             BlockCount = grid.BlocksCount;
-        }
-
-        private void closeGrid(IMyEntity obj)
-        {
-            iGrid.OnClosing -= closeGrid;
-
-            grid = null;
-            iGrid = null;
-            forwardSurfaceBlocks.Clear();
-            backwardSurfaceBlocks.Clear();
-            upSurfaceBlocks.Clear();
-            downSurfaceBlocks.Clear();
-            leftSurfaceBlocks.Clear();
-            rightSurfaceBlocks.Clear();
         }
     }
 }
